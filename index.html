@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Entrada e Saída de Peças</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .container {
+            margin-bottom: 20px;
+        }
+        .alert {
+            color: red;
+            font-weight: bold;
+        }
+        .search-container {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .search-result {
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Controle de Entrada e Saída de Peças</h1>
+
+    <!-- Formulário de Entrada e Saída -->
+    <div class="container">
+        <label for="nomePeca">Nome da Peça:</label>
+        <input type="text" id="nomePeca" placeholder="Nome da Peça" required>
+
+        <label for="quantidade">Quantidade:</label>
+        <input type="number" id="quantidade" placeholder="Quantidade" required>
+
+        <label for="tipoMovimento">Tipo de Movimento:</label>
+        <select id="tipoMovimento">
+            <option value="entrada">Entrada</option>
+            <option value="saida">Saída</option>
+        </select>
+
+        <label for="data">Data:</label>
+        <input type="date" id="data" required>
+
+        <button onclick="adicionarMovimento()">Adicionar Movimento</button>
+    </div>
+
+    <!-- Mensagem de Erro -->
+    <p id="alerta" class="alert"></p>
+
+    <!-- Tabela de Registros -->
+    <h2>Histórico de Movimentos</h2>
+    <table id="tabelaMovimentos">
+        <thead>
+            <tr>
+                <th>Nome da Peça</th>
+                <th>Quantidade</th>
+                <th>Tipo de Movimento</th>
+                <th>Data</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Os dados serão inseridos aqui -->
+        </tbody>
+    </table>
+
+    <!-- Tabela de Estoque -->
+    <h2>Estoque Atual</h2>
+    <table id="tabelaEstoque">
+        <thead>
+            <tr>
+                <th>Nome da Peça</th>
+                <th>Quantidade em Estoque</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- O estoque será exibido aqui -->
+        </tbody>
+    </table>
+
+    <!-- Caixa de Pesquisa -->
+    <div class="search-container">
+        <label for="pesquisarPeca">Pesquisar Peça:</label>
+        <input type="text" id="pesquisarPeca" placeholder="Digite o nome da peça" oninput="pesquisarPeca()">
+    </div>
+
+    <p id="resultadoPesquisa" class="search-result"></p>
+
+    <script>
+        // Carrega os dados de estoque e histórico do localStorage
+        let estoque = JSON.parse(localStorage.getItem('estoque')) || {};
+        let historicoMovimentos = JSON.parse(localStorage.getItem('historicoMovimentos')) || [];
+
+        // Função para atualizar a tabela de estoque
+        function atualizarEstoque() {
+            const tabelaEstoque = document.getElementById('tabelaEstoque').getElementsByTagName('tbody')[0];
+            tabelaEstoque.innerHTML = '';  // Limpa a tabela antes de preencher
+            for (let nomePeca in estoque) {
+                const row = tabelaEstoque.insertRow();
+                row.insertCell(0).textContent = nomePeca;
+                row.insertCell(1).textContent = estoque[nomePeca];
+            }
+
+            // Salva o estoque no localStorage
+            localStorage.setItem('estoque', JSON.stringify(estoque));
+        }
+
+        // Função para atualizar o histórico de movimentos
+        function atualizarHistorico() {
+            const tabela = document.getElementById('tabelaMovimentos').getElementsByTagName('tbody')[0];
+            tabela.innerHTML = '';  // Limpa a tabela antes de preencher
+            historicoMovimentos.forEach(movimento => {
+                const novaLinha = tabela.insertRow();
+                novaLinha.insertCell(0).textContent = movimento.nomePeca;
+                novaLinha.insertCell(1).textContent = movimento.quantidade;
+                novaLinha.insertCell(2).textContent = movimento.tipoMovimento;
+                novaLinha.insertCell(3).textContent = movimento.data;
+            });
+
+            // Salva o histórico de movimentos no localStorage
+            localStorage.setItem('historicoMovimentos', JSON.stringify(historicoMovimentos));
+        }
+
+        // Função para adicionar um movimento (entrada ou saída)
+        function adicionarMovimento() {
+            const nomePeca = document.getElementById('nomePeca').value.trim();
+            const quantidade = parseInt(document.getElementById('quantidade').value);
+            const tipoMovimento = document.getElementById('tipoMovimento').value;
+            const data = document.getElementById('data').value;
+
+            // Verifica se todos os campos foram preenchidos corretamente
+            if (!nomePeca || !quantidade || !data) {
+                document.getElementById('alerta').textContent = 'Por favor, preencha todos os campos!';
+                return;
+            }
+
+            // Verifica se a quantidade é válida
+            if (quantidade <= 0) {
+                document.getElementById('alerta').textContent = 'A quantidade deve ser maior que zero!';
+                return;
+            }
+
+            // Se for uma entrada de peças
+            if (tipoMovimento === 'entrada') {
+                if (!estoque[nomePeca]) {
+                    estoque[nomePeca] = 0;  // Se não existe a peça, inicia com quantidade 0
+                }
+                estoque[nomePeca] += quantidade;
+            }
+            // Se for uma saída de peças
+            else if (tipoMovimento === 'saida') {
+                if (!estoque[nomePeca] || estoque[nomePeca] < quantidade) {
+                    document.getElementById('alerta').textContent = 'Não há peças suficientes em estoque para essa saída!';
+                    return;
+                }
+                estoque[nomePeca] -= quantidade;
+            }
+
+            // Adiciona o movimento ao histórico
+            historicoMovimentos.push({ nomePeca, quantidade, tipoMovimento, data });
+
+            // Limpa os campos após adicionar o movimento
+            document.getElementById('nomePeca').value = '';
+            document.getElementById('quantidade').value = '';
+            document.getElementById('tipoMovimento').value = 'entrada';
+            document.getElementById('data').value = '';
+            document.getElementById('alerta').textContent = '';
+
+            // Atualiza a tabela de estoque e o histórico
+            atualizarEstoque();
+            atualizarHistorico();
+        }
+
+        // Função de pesquisa de peça
+        function pesquisarPeca() {
+            const nomePecaPesquisa = document.getElementById('pesquisarPeca').value.trim().toLowerCase();
+            const resultadoPesquisa = document.getElementById('resultadoPesquisa');
+
+            // Verifica se o campo de pesquisa está vazio
+            if (!nomePecaPesquisa) {
+                resultadoPesquisa.textContent = '';
+                return;
+            }
+
+            // Busca pela peça no estoque
+            const quantidadeEmEstoque = estoque[nomePecaPesquisa];
+
+            if (quantidadeEmEstoque !== undefined) {
+                // Se a peça for encontrada no estoque
+                resultadoPesquisa.textContent = `A peça "${nomePecaPesquisa}" tem ${quantidadeEmEstoque} unidades em estoque.`;
+            } else {
+                // Se a peça não for encontrada no estoque
+                resultadoPesquisa.textContent = 'Peça não encontrada no estoque.';
+            }
+        }
+
+        // Carrega os dados iniciais
+        atualizarEstoque();
+        atualizarHistorico();
+    </script>
+</body>
+</html>
