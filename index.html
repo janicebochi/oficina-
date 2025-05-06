@@ -39,6 +39,11 @@
             font-weight: bold;
             color: green;
         }
+        .image-preview {
+            max-width: 100px;
+            max-height: 100px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -61,6 +66,9 @@
         <label for="data">Data:</label>
         <input type="date" id="data" required>
 
+        <label for="imagem">Imagem da Peça:</label>
+        <input type="file" id="imagem" accept="image/*">
+
         <button onclick="adicionarMovimento()">Adicionar Movimento</button>
     </div>
 
@@ -76,6 +84,7 @@
                 <th>Quantidade</th>
                 <th>Tipo de Movimento</th>
                 <th>Data</th>
+                <th>Imagem</th>
             </tr>
         </thead>
         <tbody>
@@ -90,6 +99,7 @@
             <tr>
                 <th>Nome da Peça</th>
                 <th>Quantidade em Estoque</th>
+                <th>Imagem</th>
             </tr>
         </thead>
         <tbody>
@@ -117,7 +127,13 @@
             for (let nomePeca in estoque) {
                 const row = tabelaEstoque.insertRow();
                 row.insertCell(0).textContent = nomePeca;
-                row.insertCell(1).textContent = estoque[nomePeca];
+                row.insertCell(1).textContent = estoque[nomePeca].quantidade;
+
+                const imagemCell = row.insertCell(2);
+                const imagem = document.createElement('img');
+                imagem.src = estoque[nomePeca].imagem;
+                imagem.classList.add('image-preview');
+                imagemCell.appendChild(imagem);
             }
 
             // Salva o estoque no localStorage
@@ -134,6 +150,12 @@
                 novaLinha.insertCell(1).textContent = movimento.quantidade;
                 novaLinha.insertCell(2).textContent = movimento.tipoMovimento;
                 novaLinha.insertCell(3).textContent = movimento.data;
+
+                const imagemCell = novaLinha.insertCell(4);
+                const imagem = document.createElement('img');
+                imagem.src = movimento.imagem;
+                imagem.classList.add('image-preview');
+                imagemCell.appendChild(imagem);
             });
 
             // Salva o histórico de movimentos no localStorage
@@ -146,6 +168,7 @@
             const quantidade = parseInt(document.getElementById('quantidade').value);
             const tipoMovimento = document.getElementById('tipoMovimento').value;
             const data = document.getElementById('data').value;
+            const imagemInput = document.getElementById('imagem').files[0];
 
             // Verifica se todos os campos foram preenchidos corretamente
             if (!nomePeca || !quantidade || !data) {
@@ -159,30 +182,52 @@
                 return;
             }
 
+            // Carrega a imagem, caso tenha sido fornecida
+            let imagemUrl = '';
+            if (imagemInput) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    imagemUrl = event.target.result;
+                    salvarMovimento(imagemUrl);  // Salva o movimento após carregar a imagem
+                };
+                reader.readAsDataURL(imagemInput);
+            } else {
+                salvarMovimento(imagemUrl);  // Salva o movimento mesmo sem imagem
+            }
+        }
+
+        // Função para salvar o movimento após carregar a imagem
+        function salvarMovimento(imagemUrl) {
+            const nomePeca = document.getElementById('nomePeca').value.trim();
+            const quantidade = parseInt(document.getElementById('quantidade').value);
+            const tipoMovimento = document.getElementById('tipoMovimento').value;
+            const data = document.getElementById('data').value;
+
             // Se for uma entrada de peças
             if (tipoMovimento === 'entrada') {
                 if (!estoque[nomePeca]) {
-                    estoque[nomePeca] = 0;  // Se não existe a peça, inicia com quantidade 0
+                    estoque[nomePeca] = { quantidade: 0, imagem: imagemUrl };
                 }
-                estoque[nomePeca] += quantidade;
+                estoque[nomePeca].quantidade += quantidade;
             }
             // Se for uma saída de peças
             else if (tipoMovimento === 'saida') {
-                if (!estoque[nomePeca] || estoque[nomePeca] < quantidade) {
+                if (!estoque[nomePeca] || estoque[nomePeca].quantidade < quantidade) {
                     document.getElementById('alerta').textContent = 'Não há peças suficientes em estoque para essa saída!';
                     return;
                 }
-                estoque[nomePeca] -= quantidade;
+                estoque[nomePeca].quantidade -= quantidade;
             }
 
             // Adiciona o movimento ao histórico
-            historicoMovimentos.push({ nomePeca, quantidade, tipoMovimento, data });
+            historicoMovimentos.push({ nomePeca, quantidade, tipoMovimento, data, imagem: imagemUrl });
 
             // Limpa os campos após adicionar o movimento
             document.getElementById('nomePeca').value = '';
             document.getElementById('quantidade').value = '';
             document.getElementById('tipoMovimento').value = 'entrada';
             document.getElementById('data').value = '';
+            document.getElementById('imagem').value = '';
             document.getElementById('alerta').textContent = '';
 
             // Atualiza a tabela de estoque e o histórico
@@ -206,7 +251,7 @@
 
             if (quantidadeEmEstoque !== undefined) {
                 // Se a peça for encontrada no estoque
-                resultadoPesquisa.textContent = `A peça "${nomePecaPesquisa}" tem ${quantidadeEmEstoque} unidades em estoque.`;
+                resultadoPesquisa.textContent = `A peça "${nomePecaPesquisa}" tem ${quantidadeEmEstoque.quantidade} unidades em estoque.`;
             } else {
                 // Se a peça não for encontrada no estoque
                 resultadoPesquisa.textContent = 'Peça não encontrada no estoque.';
